@@ -7,7 +7,7 @@
 
 #define _XTAL_FREQ 4000000
 
-#define WORK_PERIOD 7200         // tv blinking time after sunset in seconds
+#define WORK_PERIOD 14400         // tv blinking time after sunset in seconds
 
 #define LED_INFO    RB1            // control pin of info LED
 
@@ -47,7 +47,7 @@ unsigned int duration_min = 0;
 void main(void) {
     
     // Setup PORTS
-    TRISA = 0b00000111;
+    TRISA = 0b00000111;         
     TRISB = 0b00000000;
     PORTB = 0b00000000;
     
@@ -58,7 +58,7 @@ void main(void) {
     TMR0=0;
 
     
-    VRCON = 0b11100011;         // Vref setup
+    VRCON = 0b11001111;         // Vref setup
     CMCON = 0b00000010;         // CMP setup
     
     
@@ -82,7 +82,7 @@ void main(void) {
     T2CON = 0b00000100 ;
     CCPR1L = 0b00000000 ;
     //CCP1CON = 0b00111100 ; 
-    CCP1CON = 0b00110000 ; 
+    CCP1CON = 0b00000000 ; 
     
     
     while(1) {
@@ -90,7 +90,10 @@ void main(void) {
         if( C1OUT ) { 
             // sunrise
             
-            CCPR1L = 0;
+            // disable PWM
+            CCPR1L = 0b00000000 ;
+            CCP1CON = 0b00000000 ; 
+            
             PORTB = 0;
             duration = 0;
             
@@ -136,8 +139,9 @@ void main(void) {
                 LED_INFO = 1;
                 
                 // disable PWM
-                CCPR1L = 0;
-                CCP1CON = 0b00110000 ; 
+                CCPR1L = 0b00000000 ;
+                CCP1CON = 0b00000000 ; 
+                
                 LED_WHITE = 0;
             };
         };
