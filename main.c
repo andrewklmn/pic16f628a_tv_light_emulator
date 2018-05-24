@@ -2,12 +2,20 @@
  * File:   main.c
  * Author: user
  *
- * Created on 15 травня 2018, 9:35
+ * Created on 15 May 2018, 9:35
  */
 
 #define _XTAL_FREQ 4000000
 
-#define WORK_PERIOD 7200         // период работы в секундах когда стемнело
+#define WORK_PERIOD 7200         // tv blinking time after sunset in seconds
+
+#define LED_INFO    RB1            // control pin of info LED
+
+#define LED_WHITE   RB3            // control pin of white LED  (PWM)
+#define LED_GREEN   RB2            // control pins of color LEDs
+#define LED_BLUE    RB4 
+#define LED_RED     RB5
+
 
 #pragma config FOSC = INTOSCIO  // Oscillator Selection bits (INTOSC oscillator: I/O function on RA6/OSC2/CLKOUT pin, I/O function on RA7/OSC1/CLKIN)
 #pragma config WDTE = OFF       // Watchdog Timer Enable bit (WDT disabled)
@@ -45,54 +53,58 @@ void main(void) {
     
     
     //запуск таймера TMR0  
-    INTCON = 0b10100000;           //        Настройка прерываний
-    OPTION_REG = 0b00000111;           //        Настройка TMR0
+    INTCON = 0b10100000;        // INT setup
+    OPTION_REG = 0b00000111;    // TMR0 setup
     TMR0=0;
 
     
-    // Настройка опорного напряжения
-    VRCON = 0b11100011;
-    // Настройка регистра компараторов
-    CMCON = 0b00000010;
+    VRCON = 0b11100011;         // Vref setup
+    CMCON = 0b00000010;         // CMP setup
     
     
     __delay_ms(500);
-    PORTB = 0b11111111;
+    LED_INFO = 1;
     __delay_ms(100);
-    PORTB = 0b00000000;
+    LED_INFO = 0;
     __delay_ms(100);
-    PORTB = 0b11111111;
-    PORTB = 0b00000000;
+    LED_INFO = 1;
     __delay_ms(100);
-    PORTB = 0b11111111;
+    LED_INFO = 0;
     __delay_ms(100);
-    PORTB = 0b00000000;
+    LED_INFO = 1;
+    __delay_ms(100);
+    LED_INFO = 0;
     __delay_ms(500);
 
     
-    // настройка ШИМ на 1000кГц
+    // PWM setup
     PR2 = 0b11111001 ;
     T2CON = 0b00000100 ;
     CCPR1L = 0b00000000 ;
-    CCP1CON = 0b00111100 ;
+    //CCP1CON = 0b00111100 ; 
+    CCP1CON = 0b00110000 ; 
     
     
     while(1) {
         
         if( C1OUT ) { 
-            // светло на датчике
-            // перестаём мигать
+            // sunrise
+            
             CCPR1L = 0;
             PORTB = 0;
             duration = 0;
             
-            RB1 = 1;
+            LED_INFO = 1;
             __delay_ms(100);
-            RB1 = 0;
+            LED_INFO = 0;
             __delay_ms(900);
             
         } else {
-            if (duration_min <= WORK_PERIOD) { 
+            if (duration_min <= WORK_PERIOD) {
+                
+                //enable_PWM
+                CCP1CON = 0b00111100 ; 
+                
                 // потемнело
                 // генерим параметры мигания
                 time = rand();
@@ -108,19 +120,25 @@ void main(void) {
                 for (i = 0; i < time; i++) {
 
                     //RB1 = (i>b1 && i<e1)?1:0;
-                    RB2 = (i>b2 && i<e2)?1:0;
-                    RB4 = (i>b3 && i<e3)?1:0;
-                    RB5 = (i>b4 && i<e4)?1:0;
+                    LED_GREEN = (i>b2 && i<e2)?1:0;
+                    LED_BLUE = (i>b3 && i<e3)?1:0;
+                    LED_RED = (i>b4 && i<e4)?1:0;
 
                     __delay_ms(10);
                 };
             } else {
+                
                 duration_min = WORK_PERIOD + 1;
-                RB2 = 0;
-                RB4 = 0;
-                RB5 = 0;
-                RB1 = 1;
+                
+                LED_GREEN = 0;
+                LED_BLUE = 0;
+                LED_RED = 0;
+                LED_INFO = 1;
+                
+                // disable PWM
                 CCPR1L = 0;
+                CCP1CON = 0b00110000 ; 
+                LED_WHITE = 0;
             };
         };
     };
@@ -129,10 +147,11 @@ void main(void) {
 
 void interrupt isr(void)
 {
-	if(T0IF) 		//	при переполнение TMR0
+	if(T0IF)
 	{
-        T0IF=0; 	//	сбрасываем флаг о его переполнение
-        if(C1OUT) { 
+        T0IF=0; 
+        
+        if(C1OUT) {
             duration = 0;
             duration_min = 0;
         } else {
