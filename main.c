@@ -7,14 +7,14 @@
 
 #define _XTAL_FREQ 4000000
 
-#define WORK_PERIOD 14400         // tv blinking time after sunset in seconds
+#define WORK_PERIOD 17400         // tv blinking time after sunset in seconds
 
 #define LED_INFO    RB1            // control pin of info LED
 
-#define LED_WHITE   RB3            // control pin of white LED  (PWM)
-#define LED_GREEN   RB2            // control pins of color LEDs
-#define LED_BLUE    RB4 
-#define LED_RED     RB5
+#define LED_WHITE   RB3            // control pin of white LED  (PWM) pin9
+#define LED_GREEN   RB2            // control pins of color LEDs      pin8
+#define LED_BLUE    RB4             //                                pin10
+#define LED_RED     RB5             //                                pin11
 
 
 #pragma config FOSC = INTOSCIO  // Oscillator Selection bits (INTOSC oscillator: I/O function on RA6/OSC2/CLKOUT pin, I/O function on RA7/OSC1/CLKIN)
@@ -85,6 +85,8 @@ void main(void) {
     CCP1CON = 0b00000000 ; 
     
     
+    srand (TMR0);
+    
     while(1) {
         
         if( C1OUT ) { 
@@ -98,9 +100,9 @@ void main(void) {
             duration = 0;
             
             LED_INFO = 1;
-            __delay_ms(100);
+            __delay_ms(50);
             LED_INFO = 0;
-            __delay_ms(900);
+            __delay_ms(950);
             
         } else {
             if (duration_min <= WORK_PERIOD) {
@@ -110,14 +112,20 @@ void main(void) {
                 
                 // потемнело
                 // генерим параметры мигания
-                time = rand();
+                time = rand() % 256;
+                
                 //b1 = 0; e1 = rand();
-                b2 = 0; e2 = rand();
-                b3 = 0; e3 = rand();
-                b4 = 0; e4 = rand();      
+                b2 = rand() % 80; 
+                e2 = 80 + rand() % 176;
+                
+                b3 = rand() % 60; 
+                e3 = 148 + rand() % 107;
+                
+                b4 = rand() % 100; 
+                e4 = 118 + rand() % 137;     
 
                 // change PWM pulse width randomly
-                CCPR1L = rand() + 50;
+                CCPR1L = 50 + rand() % 205 ;
 
                 // мигаем некторое время
                 for (i = 0; i < time; i++) {
@@ -127,7 +135,7 @@ void main(void) {
                     LED_BLUE = (i>b3 && i<e3)?1:0;
                     LED_RED = (i>b4 && i<e4)?1:0;
 
-                    __delay_ms(10);
+                    __delay_ms(30);
                 };
             } else {
                 
