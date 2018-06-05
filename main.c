@@ -7,8 +7,8 @@
 
 #define _XTAL_FREQ 4000000
 
-#define WORK_PERIOD 15000         // tv blinking time after sunset in seconds
-#define DELAY_PERIOD 10          // delay before tv blinking after sunset in seconds
+#define WORK_PERIOD 16000         // tv blinking time after sunset in seconds
+#define DELAY_PERIOD 0          // delay before tv blinking after sunset in seconds
 
 #define LED_INFO    RB1            // control pin of info LED
 
@@ -59,9 +59,9 @@ void main(void) {
     TMR0=0;
 
     
-    //VRCON = 0b11001111;         // Vref setup
-    //CMCON = 0b00000010;         // CMP setup
-    CMCON = 0b00000111;         // Disable Comparators
+    VRCON = 0b11001111;         // Vref setup
+    CMCON = 0b00000010;         // CMP setup
+    //CMCON = 0b00000111;         // Disable Comparators
     
     
     __delay_ms(500);
@@ -91,9 +91,10 @@ void main(void) {
     
     while(1) {
         
-        //if( C1OUT ) { 
-        if( RA0 != 1 ) { 
+        if( C1OUT ) { 
+        //if( RA0 != 1 ) { 
             // sunrise
+            VRCON = 0b11001111;         // Vref setup
             
             // disable PWM
             CCPR1L = 0b00000000 ;
@@ -109,6 +110,10 @@ void main(void) {
             __delay_ms(950);
             
         } else {
+            
+            
+            VRCON = 0b11000011;         // Vref setup for day
+            
             if (duration_in_seconds <= (WORK_PERIOD + DELAY_PERIOD) 
                     && duration_in_seconds > DELAY_PERIOD) {
 
