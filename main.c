@@ -5,9 +5,13 @@
  * Created on 15 May 2018, 9:35
  */
 
-#define _XTAL_FREQ 4000000
+#include <xc.h>
+#include <pic16f628.h>
+#include <stdlib.h>
 
-#define WORK_PERIOD 16000         // tv blinking time after sunset in seconds
+
+#define _XTAL_FREQ 6000000
+
 #define DELAY_PERIOD 0          // delay before tv blinking after sunset in seconds
 
 #define LED_INFO    RB1            // control pin of info LED
@@ -27,9 +31,6 @@
 #pragma config CPD = OFF        // Data EE Memory Code Protection bit (Data memory code protection off)
 #pragma config CP = OFF         // Flash Program Memory Code Protection bit (Code protection off)
 
-#include <xc.h>
-#include <pic16f628.h>
-#include <stdlib.h>
 
 unsigned char time = 0;
 unsigned char b1 = 0;
@@ -45,7 +46,11 @@ unsigned char i;
 unsigned char duration = 0;
 unsigned int duration_in_seconds = 0;
 
+unsigned int night = 43200;                 // default night duration 
+unsigned int work_cycle = 17280;            // default work cycle duration 
+
 void main(void) {
+    
     
     // Setup PORTS
     TRISA = 0b00000111;  // RA0-1-2 like input   
@@ -92,9 +97,8 @@ void main(void) {
     while(1) {
         
         if( C1OUT ) { 
-        //if( RA0 != 1 ) { 
-            // sunrise
-            VRCON = 0b11001111;         // Vref setup
+            // day is pending...
+            VRCON = 0b11001111;         // set Vref higher for hysteresis
             
             // disable PWM
             CCPR1L = 0b00000000 ;
@@ -110,11 +114,11 @@ void main(void) {
             __delay_ms(950);
             
         } else {
+            // night is pending 
             
+            VRCON = 0b11000011;         // set Vref lower for hysteresis
             
-            VRCON = 0b11000011;         // Vref setup for day
-            
-            if (duration_in_seconds <= (WORK_PERIOD + DELAY_PERIOD) 
+            if (duration_in_seconds <= ( work_cycle + DELAY_PERIOD) 
                     && duration_in_seconds > DELAY_PERIOD) {
 
                 //enable_PWM
@@ -134,7 +138,7 @@ void main(void) {
                 e4 = 138 + rand() % 117;     
 
                 // change PWM pulse width randomly
-                CCPR1L = 80 + rand() % 175 ;            //white
+                CCPR1L = 120 + rand() % 135 ;            //white
                 LED_INFO = 0;
                 // мигаем некоторое время
                 for (i = 0; i < time; i++) {
@@ -144,14 +148,19 @@ void main(void) {
                     LED_BLUE = (i>b3 && i<e3)?1:0;
                     LED_RED = (i>b4 && i<e4)?1:0;
 
-                    __delay_ms(30);
+                    __delay_ms(37);
                 };
                 LED_INFO = 1;
                 
             } else {
-                if (duration_in_seconds > (WORK_PERIOD + DELAY_PERIOD)) 
-                            duration_in_seconds = WORK_PERIOD + DELAY_PERIOD + 1;
-
+                
+                night = duration_in_seconds;            // define Current night duration
+                if (night < 22500) night = 22500;
+                if (night > 64800) night = 64800;
+                work_cycle = night / 2.5;               // define new duration of work cycle
+                
+                if (duration_in_seconds > 65500 ) duration_in_seconds = 65500;
+                
                 LED_GREEN = 0;
                 LED_BLUE = 0;
                 LED_RED = 0;
@@ -175,12 +184,14 @@ void interrupt isr(void)
 {
 	if(T0IF)
 	{
-        T0IF=0; 
-        
+        T0IF=0;
         if(C1OUT) {
+            // day is pending...
             duration = 0;
             duration_in_seconds = 0;
+            
         } else {
+            // night is pending
             duration++;
             if (duration > 14) { 
                 duration_in_seconds++;
