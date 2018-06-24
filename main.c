@@ -41,13 +41,17 @@ unsigned char b3 = 0;
 unsigned char e3 = 0;
 unsigned char b4 = 0;
 unsigned char e4 = 0;
-unsigned char i;
+unsigned int i = 0;
+char cycle_was_ended= 0;
 
-unsigned char duration = 0;
+unsigned int duration = 0;
 unsigned int duration_in_seconds = 0;
 
 unsigned int night = 43200;                 // default night duration 
 unsigned int work_cycle = 17280;            // default work cycle duration 
+
+#define MIN_NIGHT_DURATION 22000
+#define MAX_NIGHT_DURATION 64000
 
 void main(void) {
     
@@ -97,6 +101,7 @@ void main(void) {
     while(1) {
         
         if( C1OUT ) { 
+            
             // day is pending...
             VRCON = 0b11001111;         // set Vref higher for hysteresis
             
@@ -104,43 +109,45 @@ void main(void) {
             CCPR1L = 0b00000000 ;
             CCP1CON = 0b00000000 ; 
             
-            PORTB = 0;
+            LED_GREEN = 0;
+            LED_BLUE = 0;
+            LED_RED = 0;
+            LED_WHITE = 0;
+                
             duration = 0;
             duration_in_seconds = 0;
             
             LED_INFO = 1;
-            __delay_ms(50);
+            __delay_ms(20);
             LED_INFO = 0;
-            __delay_ms(950);
+            __delay_ms(980);
+            
+            cycle_was_ended = 0;
             
         } else {
             // night is pending 
             
             VRCON = 0b11000011;         // set Vref lower for hysteresis
             
-            if (duration_in_seconds <= ( work_cycle + DELAY_PERIOD) 
+            if (duration_in_seconds < ( work_cycle + DELAY_PERIOD) 
                     && duration_in_seconds > DELAY_PERIOD) {
 
                 //enable_PWM
                 CCP1CON = 0b00111100 ; 
-
                 // потемнело
                 // генерим параметры мигания
                 time = rand() % 255;                    // длина рабочего цикла
-
                 b2 = rand() % 80;                       // green
                 e2 = 80 + rand() % 165;
-
                 b3 = rand() % 10;                       // blue
                 e3 = 148 + rand() % 107;
-
                 b4 = rand() % 138;                      // red
                 e4 = 138 + rand() % 117;     
-
                 // change PWM pulse width randomly
                 CCPR1L = 120 + rand() % 135 ;            //white
                 LED_INFO = 0;
-                // мигаем некоторое время
+                
+                // blinking cycle
                 for (i = 0; i < time; i++) {
 
                     //RB1 = (i>b1 && i<e1)?1:0;
@@ -148,33 +155,37 @@ void main(void) {
                     LED_BLUE = (i>b3 && i<e3)?1:0;
                     LED_RED = (i>b4 && i<e4)?1:0;
 
-                    __delay_ms(37);
+                    __delay_ms(33);
                 };
                 LED_INFO = 1;
                 
             } else {
                 
                 night = duration_in_seconds;            // define Current night duration
-                if (night < 22500) night = 22500;
-                if (night > 64800) night = 64800;
-                work_cycle = night / 2.5;               // define new duration of work cycle
                 
+                if (night < MIN_NIGHT_DURATION) night = MIN_NIGHT_DURATION;
+                if (night > MAX_NIGHT_DURATION) night = MAX_NIGHT_DURATION;
+                work_cycle = night / 2.5;               // define new duration of work cycle
                 if (duration_in_seconds > 65500 ) duration_in_seconds = 65500;
+                
+                LED_INFO = 1;
+                __delay_ms(20);
+                LED_INFO = 0;
+                __delay_ms(100);
+                LED_INFO = 1;
+                __delay_ms(20);
+                LED_INFO = 0;
+                __delay_ms(860);
                 
                 LED_GREEN = 0;
                 LED_BLUE = 0;
                 LED_RED = 0;
-                LED_INFO = 1;
-
+                
                 // disable PWM
                 CCPR1L = 0b00000000 ;
-                CCP1CON = 0b00000000 ; 
-
+                CCP1CON = 0b00000000 ;   
                 LED_WHITE = 0;
             };
-
-
-
         };
     };
     return;
